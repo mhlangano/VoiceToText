@@ -1,0 +1,113 @@
+<apex:page showHeader="false" controller="voiceToSpeechController" standardStylesheets="false" sidebar="false" applyHtmlTag="false" applyBodyTag="false" docType="html-5.0">
+   <html xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" lang="en">
+      <apex:slds />
+      <head>
+         <meta charset="utf-8" />
+         <meta http-equiv="x-ua-compatible" content="ie=edge" />
+         <title>Hot Leads</title>
+         <meta name="viewport" content="width=device-width, initial-scale=1" />
+         <!-- Import the Design System style sheet -->
+         <apex:slds />
+      </head>
+      <body>
+         <!-- REQUIRED SLDS WRAPPER -->
+         <div class="slds-scope">
+            <!-- / MASTHEAD -->
+            <!-- PRIMARY CONTENT WRAPPER -->
+            <div class="myapp">
+               <!-- SECTION - BADGE COMPONENTS -->
+               <section aria-labelledby="badges">
+                  <!--  <h2 id="badges" class="slds-text-heading--large slds-m-vertical--x-small">Hot Leads</h2><br/> -->
+                  <div>
+                     <button id='btnGiveCommand' class="slds-button slds-button_outline-brand">
+                        Instruct
+                        <svg aria-hidden="true" class="slds-icon  slds-icon-text-default slds-icon--x-small"  style="fill: rgba(27, 82, 151, 1);">
+                           <use xlink:href="{!URLFOR($Asset.SLDS, 'assets/icons/utility-sprite/svg/symbols.svg#unmuted')}"></use>
+                        </svg>
+                     </button>
+                     <br/>
+                  </div>
+                  <div class="slds-p-top_x-small">
+                     <span id='message'></span>
+                  </div>
+               </section>
+            </div>
+            <apex:repeat value="{!hotLeads}" var="obj">
+               <div class="slds-m-top--small"></div>
+               <div class="slds-form-element">
+                  <div class="slds-form-element__control">
+                     <div class="slds-checkbox">
+                        <input type="checkbox" id="{!obj.Id}" class="example" name="{!obj.FirstName}"/>
+                        <label class="slds-checkbox__label">
+                        <span class="slds-checkbox_faux"></span>
+                        <span class="slds-form-element__label">{!obj.FirstName} {!obj.LastName}</span>
+                        </label>
+                     </div>
+                  </div>
+               </div>
+            </apex:repeat>
+         </div>
+         <!-- / REQUIRED SLDS WRAPPER -->
+         <script>
+            var message = document.querySelector('#message');
+            var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition;
+            var SpeechGrammarList = SpeechGrammarList || webkitSpeechGrammarList;
+            var grammar = '#JSGF V1.0;'
+            var recognition = new SpeechRecognition();
+            var speechRecognitionList = new SpeechGrammarList();
+            speechRecognitionList.addFromString(grammar, 1);
+            recognition.grammars = speechRecognitionList;
+            recognition.lang = 'en-US';
+            recognition.interimResults = false;
+            recognition.onresult = function(event) {
+                var last = event.results.length - 1;
+                var command = event.results[last][0].transcript;
+                message.textContent = 'Voice Input: ' + command + '.';
+                
+                var namesList = [];
+                var namesMap = new Map();
+                var checkboxes = document.getElementsByClassName("example");
+                
+                for (var i = 0; i < checkboxes.length; i++) {
+                  namesList.push(checkboxes[i].name);
+                  namesMap.set(checkboxes[i].id, checkboxes[i].name);
+                }            
+                var allNames = namesList.toString();          
+                
+                var instruction = command.toLowerCase();
+                
+                if(instruction.includes('select') && !instruction.includes("don't select")){
+                    for (let [k, v] of namesMap ) {
+                        if(command.includes(v)){
+                            document.getElementById(k).checked = true;
+                        }
+                    }                    
+                }else if(instruction.includes("don't select") || instruction.includes("deselect") || instruction.includes("do not select")){
+                    for (let [k, v] of namesMap ) {
+                        if(command.includes(v)){
+                            document.getElementById(k).checked = false;
+                        }
+                    }                    
+                }else if (instruction.includes('open')){            
+                    for (let [k, v] of namesMap ) {
+                        if(command.includes(v)){
+                            var theUrl = 'https://eu15.lightning.force.com/lightning/r/Lead/'+k+'/view';
+                            window.open(theUrl);
+                        }
+                    }                                                     
+                }
+                
+            };
+            recognition.onspeechend = function() {
+                recognition.stop();
+            };
+            recognition.onerror = function(event) {
+                message.textContent = 'Error occurred in recognition: ' + event.error;
+            }        
+            document.querySelector('#btnGiveCommand').addEventListener('click', function(){
+                recognition.start();
+            });
+         </script>  
+      </body>
+   </html>
+</apex:page>
